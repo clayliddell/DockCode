@@ -32,6 +32,7 @@ The API key is never stored in the image — only injected at sandbox creation t
 
 - Docker Desktop for Linux (with `docker sandbox` CLI)
 - An OpenRouter API key
+- `jq` CLI tool (see [jq Download page](https://jqlang.org/download/) for install instructions)
 
 ## Quick Start
 
