@@ -11,7 +11,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 DEFAULT_OPENCODE_CONFIG="${DOCKCODE_CONFIG_DIR}/opencode.json"
 DEFAULT_AUTH_CONFIG="${DOCKCODE_CONFIG_DIR}/auth.json"
-DEFAULT_AUTH_KEY_ENV_VAR="DOCKCODE_OR_API_KEY"
 
 # ─── Config file I/O ──────────────────────────────────────────────────────────
 get_config() {
@@ -36,8 +35,8 @@ set_config() {
 init_config() {
   if [ ! -f "$CONFIG_FILE" ]; then
     mkdir -p "$DOCKCODE_CONFIG_DIR"
-    printf 'OPENCODE_CONFIG=%s\nAUTH_CONFIG=%s\nAUTH_KEY_ENV_VAR=%s\n' \
-      "$DEFAULT_OPENCODE_CONFIG" "$DEFAULT_AUTH_CONFIG" "$DEFAULT_AUTH_KEY_ENV_VAR" \
+    printf 'OPENCODE_CONFIG=%s\nAUTH_CONFIG=%s\n' \
+      "$DEFAULT_OPENCODE_CONFIG" "$DEFAULT_AUTH_CONFIG" \
       > "$CONFIG_FILE"
   fi
 }
@@ -46,7 +45,6 @@ init_config() {
 init_config
 OPENCODE_CONFIG="$(get_config OPENCODE_CONFIG "$DEFAULT_OPENCODE_CONFIG")"
 AUTH_CONFIG="$(get_config AUTH_CONFIG "$DEFAULT_AUTH_CONFIG")"
-AUTH_KEY_ENV_VAR="$(get_config AUTH_KEY_ENV_VAR "$DEFAULT_AUTH_KEY_ENV_VAR")"
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 info() { echo "$*"; }
@@ -150,48 +148,6 @@ resolve_config() {
   info "Copied ${label} to $target"
 }
 
-# ─── Write project defaults ───────────────────────────────────────────────────
-write_default_opencode() {
-  mkdir -p "$(dirname "$1")"
-  cat > "$1" << 'OPENCODE_EOF'
-{
-  "$schema": "https://opencode.ai/config.json",
-  "model": "openrouter/anthropic/claude-sonnet-4-5",
-  "small_model": "openrouter/anthropic/claude-haiku-4-5",
-  "provider": {
-    "openrouter": {
-      "models": {
-        "anthropic/claude-sonnet-4-5": {},
-        "anthropic/claude-haiku-4-5": {},
-        "anthropic/claude-opus-4-5": {},
-        "openai/gpt-4.1": {},
-        "openai/gpt-4.1-mini": {},
-        "google/gemini-2.5-pro": {},
-        "google/gemini-2.5-flash": {},
-        "deepseek/deepseek-r1": {},
-        "deepseek/deepseek-chat-v3-0324": {},
-        "moonshotai/kimi-k2": {}
-      }
-    }
-  },
-  "permission": {
-    "bash": "allow",
-    "edit": "allow",
-    "read": "allow",
-    "glob": "allow",
-    "grep": "allow"
-  }
-}
-OPENCODE_EOF
-}
-
-write_default_auth() {
-  local env_var="$2"
-  mkdir -p "$(dirname "$1")"
-  printf '{\n  "openrouter": {\n    "type": "api",\n    "key": "%s"\n  }\n}\n' \
-    "$env_var" > "$1"
-}
-
 # ─── Build image ──────────────────────────────────────────────────────────────
 build_image() {
   info "Building custom sandbox image..."
@@ -205,19 +161,12 @@ build_image() {
 
 # ─── Inject auth.json ─────────────────────────────────────────────────────────
 inject_auth() {
-  local auth_path="$1" sandbox_name="$2" env_var="$3"
-  local content
-  content=$(cat "$auth_path")
-
-  local env_value="${!env_var:-}"
-  if [ -n "$env_value" ]; then
-    content="${content//$env_var/$env_value}"
-  fi
+  local auth_path="$1" sandbox_name="$2"
 
   docker sandbox exec "$sandbox_name" bash -c "
 mkdir -p ~/.local/share/opencode
 cat > ~/.local/share/opencode/auth.json << 'INNER_EOF'
-${content}
+$(cat "$auth_path")
 INNER_EOF
 chmod 600 ~/.local/share/opencode/auth.json
 "
@@ -246,7 +195,7 @@ create_sandbox() {
     --bypass-host openrouter.ai
 
   info "Injecting auth.json..."
-  inject_auth "$AUTH_CONFIG" "$name" "$AUTH_KEY_ENV_VAR"
+  inject_auth "$AUTH_CONFIG" "$name"
 
   echo ""
   echo "Sandbox '$name' is ready."
@@ -255,7 +204,6 @@ create_sandbox() {
   echo "  Template:   $TEMPLATE"
   echo "  Config:     $OPENCODE_CONFIG"
   echo "  Auth:       $AUTH_CONFIG"
-  echo "  Auth env:   \$$AUTH_KEY_ENV_VAR"
 }
 
 # ─── Show usage ───────────────────────────────────────────────────────────────
@@ -270,9 +218,6 @@ Commands:
       Keys:
         opencode.json    Path to opencode.json
         auth.json        Path to auth.json
-        OR_KEY_ENV_VAR   Env var name for OpenRouter API key
-                         - overrides OR API key in auth.json
-                         (default: DOCKCODE_OR_API_KEY)
 
   launch [-n name] [-w workspace]      Launch or create a sandbox
 
@@ -289,7 +234,6 @@ EOF
 handle_config_show() {
   echo "opencode.json     $OPENCODE_CONFIG"
   echo "auth.json         $AUTH_CONFIG"
-  echo "AUTH_KEY_ENV_VAR  $AUTH_KEY_ENV_VAR"
 }
 
 handle_config_update() {
@@ -310,12 +254,9 @@ handle_config_update() {
       value="${value/#\~/$HOME}"
       set_config AUTH_CONFIG "$value"
       ;;
-    AUTH_KEY_ENV_VAR)
-      set_config AUTH_KEY_ENV_VAR "$value"
-      ;;
     *)
       error "Unknown key: $key"
-      error "Valid keys: opencode.json, auth.json, AUTH_KEY_ENV_VAR"
+      error "Valid keys: opencode.json, auth.json"
       exit 1
       ;;
   esac
@@ -360,9 +301,6 @@ handle_launch() {
     "opencode.json" "opencode.json" "true"
   resolve_config "$AUTH_CONFIG" "$SCRIPT_DIR/auth.json" \
     "auth.json" "auth.json" "true"
-
-  # Ensure auth.json uses configured env var name
-  write_default_auth "$AUTH_CONFIG" "$AUTH_KEY_ENV_VAR"
 
   create_sandbox "$name" "$workspace"
   echo ""
