@@ -494,7 +494,7 @@ case "${1-}" in
 	show_usage
 	;;
 --version)
-	echo "dockcode v1"
+	echo "dockcode v2alpha"
 	;;
 config)
 	case "${2-}" in
