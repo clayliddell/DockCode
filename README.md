@@ -58,6 +58,10 @@ Commands:
         opencode.json    Path to opencode.json
         auth.json        Path to auth.json
 
+  settings print [-n name]             Print opencode.json in a sandbox
+  settings update [-n name]            Update opencode.json in a sandbox
+                                        (interactive if no flags given)
+
   ls [--json]                          List existing sandboxes
   destroy [-n name]                    Destroy a sandbox
                                         (interactive if no flags given)
@@ -97,6 +101,47 @@ dockcode config update opencode.json ~/my-opencode.json
 # Use a custom auth.json
 dockcode config update auth.json ~/my-auth.json
 ```
+
+## Settings Command
+
+Manage `opencode.json` configuration inside running sandboxes.
+
+### Print settings
+
+Display the current `opencode.json` inside a sandbox:
+
+```bash
+# Interactive mode - select from available sandboxes
+dockcode settings print
+
+# Specify sandbox name
+dockcode settings print -n my-sandbox
+```
+
+### Update settings
+
+Update the `opencode.json` inside a sandbox:
+
+```bash
+# Interactive mode - select from available sandboxes
+dockcode settings update
+
+# Specify sandbox name
+dockcode settings update -n my-sandbox
+```
+
+When updating, you will be prompted to choose:
+
+```
+How would you like to update the config?
+  1) Manually edit (host editor)
+  2) Re-import default config from host
+
+Choice [1-2]:
+```
+
+- **Manually edit (host editor)** — Copies config to a temp file and opens it with your `$EDITOR` (defaults to `vi`), then uploads changes back to the sandbox
+- **Re-import default config from host** — Overwrites the sandbox config with your host's `~/.config/dockcode/opencode.json`
 
 ## List Command
 
@@ -193,7 +238,7 @@ If a sandbox with the given name already exists, it is launched directly. Otherw
 | File | Purpose |
 |---|---|
 | `Dockerfile` | Extends `docker/sandbox-templates:opencode` with OpenCode config |
-| `opencode.json` | Default OpenCode config (OpenRouter models, permissions) |
+| `opencode.example.json` | Default OpenCode config (OpenRouter models, permissions) |
 | `auth.example.json` | Default auth template (copy and edit to set your API key) |
 | `dockcode` | CLI with config management, sandbox launch, list, and destroy |
 

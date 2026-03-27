@@ -215,6 +215,108 @@ create_sandbox() {
 	echo "  Auth:       ${AUTH_CONFIG}"
 }
 
+# ─── Settings commands ────────────────────────────────────────────────────────
+resolve_sandbox_name() {
+	local name="$1"
+
+	if [[ -z ${name} ]]; then
+		local sandbox_names=()
+		while IFS= read -r sname; do
+			[[ -n ${sname} ]] && sandbox_names+=("${sname}")
+		done < <(get_sandbox_names)
+
+		if [[ ${#sandbox_names[@]} -eq 0 ]]; then
+			info "No sandboxes found."
+			return 1
+		fi
+
+		local menu_options=()
+		for sname in "${sandbox_names[@]}"; do
+			menu_options+=("${sname}")
+		done
+
+		local choice
+		choice=$(prompt_choice "Which sandbox?" "${menu_options[@]}")
+		name="${sandbox_names[$((choice - 1))]}"
+	fi
+
+	echo "${name}"
+}
+
+handle_settings_print() {
+	local name=""
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		-n)
+			name="${2-}"
+			if [[ -z ${name} ]]; then
+				error "Flag -n requires a value."
+				exit 1
+			fi
+			shift 2
+			;;
+		*)
+			error "Unknown flag: $1"
+			exit 1
+			;;
+		esac
+	done
+
+	name=$(resolve_sandbox_name "${name}") || return
+
+	docker sandbox exec "${name}" cat /home/agent/.config/opencode/opencode.json
+}
+
+handle_settings_update() {
+	local name=""
+
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		-n)
+			name="${2-}"
+			if [[ -z ${name} ]]; then
+				error "Flag -n requires a value."
+				exit 1
+			fi
+			shift 2
+			;;
+		*)
+			error "Unknown flag: $1"
+			exit 1
+			;;
+		esac
+	done
+
+	name=$(resolve_sandbox_name "${name}") || return
+
+	local choice
+	choice=$(prompt_choice \
+		"How would you like to update the config?" \
+		"Manually edit (host editor)" \
+		"Re-import default config from host")
+
+	case "${choice}" in
+	1)
+		local tmpfile
+		tmpfile=$(mktemp /tmp/dockcode-opencode-XXXXXX.json)
+		docker sandbox exec "${name}" cat /home/agent/.config/opencode/opencode.json >"${tmpfile}"
+		"${EDITOR:-vi}" "${tmpfile}"
+		docker sandbox exec -i "${name}" bash -c "cat > /home/agent/.config/opencode/opencode.json" <"${tmpfile}"
+		rm -f "${tmpfile}"
+		info "Config updated"
+		;;
+	2)
+		if [[ ! -f ${OPENCODE_CONFIG} ]]; then
+			error "Default config not found at ${OPENCODE_CONFIG}"
+			exit 1
+		fi
+		docker sandbox exec -i "${name}" bash -c "cat > /home/agent/.config/opencode/opencode.json" <"${OPENCODE_CONFIG}"
+		info "Config updated from ${OPENCODE_CONFIG}"
+		;;
+	esac
+}
+
 # ─── Show usage ───────────────────────────────────────────────────────────────
 show_usage() {
 	cat >&2 <<'EOF'
@@ -227,6 +329,12 @@ Commands:
       Keys:
         opencode.json    Path to opencode.json
         auth.json        Path to auth.json
+
+  settings print [-n name]             Print the current opencode.json
+	                                      settings in a given sandbox
+  settings update [-n name]            Update the current opencode.json
+	                                      settings in a given sandbox
+                                        (interactive if no flags given)
 
   ls [--json]                          List existing sandboxes
   destroy [-n name]                    Destroy a sandbox
@@ -403,7 +511,7 @@ interactive_launch() {
 	fi
 	workspace="$(realpath "${workspace}")"
 
-	resolve_config "${OPENCODE_CONFIG}" "${SCRIPT_DIR}/opencode.json" \
+	resolve_config "${OPENCODE_CONFIG}" "${SCRIPT_DIR}/opencode.example.json" \
 		"opencode.json" "opencode.json" "${HOME}/.config/opencode/opencode.json"
 	resolve_config "${AUTH_CONFIG}" "${SCRIPT_DIR}/auth.example.json" \
 		"auth.json" "auth.example.json" "${HOME}/.local/share/opencode/auth.json"
@@ -475,7 +583,7 @@ handle_launch() {
 	fi
 
 	# Resolve configs
-	resolve_config "${OPENCODE_CONFIG}" "${SCRIPT_DIR}/opencode.json" \
+	resolve_config "${OPENCODE_CONFIG}" "${SCRIPT_DIR}/opencode.example.json" \
 		"opencode.json" "opencode.json" "${HOME}/.config/opencode/opencode.json"
 	resolve_config "${AUTH_CONFIG}" "${SCRIPT_DIR}/auth.example.json" \
 		"auth.json" "auth.example.json" "${HOME}/.local/share/opencode/auth.json"
@@ -500,6 +608,13 @@ config)
 	case "${2-}" in
 	show) handle_config_show ;;
 	update) handle_config_update "${3-}" "${4-}" ;;
+	*) show_usage ;;
+	esac
+	;;
+settings)
+	case "${2-}" in
+	print) shift 2; handle_settings_print "$@" ;;
+	update) shift 2; handle_settings_update "$@" ;;
 	*) show_usage ;;
 	esac
 	;;
