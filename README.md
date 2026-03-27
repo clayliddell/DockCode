@@ -63,7 +63,7 @@ Commands:
                                         (interactive if no flags given)
 
   ls [--json]                          List existing sandboxes
-  destroy [-n name]                    Destroy a sandbox
+  rm [-n name]                         Destroy a sandbox
                                         (interactive if no flags given)
 
   launch [-n name] [-w workspace]      Launch or create a sandbox
