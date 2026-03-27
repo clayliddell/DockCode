@@ -7,7 +7,7 @@ IMAGE_TAG="v1"
 TEMPLATE="${IMAGE_NAME}:${IMAGE_TAG}"
 DOCKCODE_CONFIG_DIR="${HOME}/.config/dockcode"
 CONFIG_FILE="${DOCKCODE_CONFIG_DIR}/config"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
 
 DEFAULT_OPENCODE_CONFIG="${DOCKCODE_CONFIG_DIR}/opencode.json"
 DEFAULT_AUTH_CONFIG="${DOCKCODE_CONFIG_DIR}/auth.json"
