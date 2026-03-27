@@ -501,14 +501,9 @@ interactive_launch() {
 		return
 	fi
 
-	local name workspace
-	printf "Sandbox name (default: current directory name): "
-	read -r name
-	if [[ -z ${name} ]]; then
-		name="$(basename "$(pwd)" | tr '.' '-')"
-	fi
+	local workspace name
 
-	printf "Workspace path (default: current directory): "
+	printf "Workspace path (default: ${PWD}): "
 	read -r workspace
 	workspace="${workspace:-.}"
 	workspace="${workspace/#\~/${HOME}}"
@@ -517,6 +512,14 @@ interactive_launch() {
 		exit 1
 	fi
 	workspace="$(realpath "${workspace}")"
+
+	local default_name
+	default_name="$(basename "${workspace}" | tr '.' '-')"
+	printf "Sandbox name (default: ${default_name}): "
+	read -r name
+	if [[ -z ${name} ]]; then
+		name="${default_name}"
+	fi
 
 	resolve_config "${OPENCODE_CONFIG}" "${SCRIPT_DIR}/opencode.example.json" \
 		"opencode.json" "opencode.json" "${HOME}/.config/opencode/opencode.json"
