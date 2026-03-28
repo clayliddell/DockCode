@@ -503,7 +503,7 @@ interactive_launch() {
 
 	local workspace name
 
-	printf "Workspace path (default: ${PWD}): "
+	printf "Workspace path (default: %s): " "${PWD}"
 	read -r workspace
 	workspace="${workspace:-.}"
 	workspace="${workspace/#\~/${HOME}}"
@@ -515,7 +515,7 @@ interactive_launch() {
 
 	local default_name
 	default_name="$(basename "${workspace}" | tr '.' '-')"
-	printf "Sandbox name (default: ${default_name}): "
+	printf "Sandbox name (default: %s): " "${default_name}"
 	read -r name
 	if [[ -z ${name} ]]; then
 		name="${default_name}"
