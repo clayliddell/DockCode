@@ -113,7 +113,7 @@ load test_helper
 	echo '{}' >"${OPENCODE_CONFIG}"
 	echo '{}' >"${AUTH_CONFIG}"
 
-	# Choice 2 = "Create a new sandbox" (existing-sb is choice 1)
+	# Choice 1 = "Create a new sandbox"
 	# Then default workspace (empty = use PWD), then default name (empty)
 	# "x" for press-any-key after create_sandbox
 	run bash -c '
@@ -125,7 +125,7 @@ load test_helper
 		export MOCK_CALLS="'"${MOCK_CALLS}"'"
 		export MOCK_RESPONSES_DIR="'"${MOCK_RESPONSES_DIR}"'"
 		cd "'"${workspace}"'"
-		printf "2\n\n\nx" | interactive_launch
+		printf "1\n\n\nx" | interactive_launch
 	'
 	[[ "${status}" -eq 0 ]]
 	assert_docker_called_with "sandbox create"
@@ -196,7 +196,7 @@ load test_helper
 		export CONFIG_FILE="'"${CONFIG_FILE}"'"
 		export MOCK_CALLS="'"${MOCK_CALLS}"'"
 		export MOCK_RESPONSES_DIR="'"${MOCK_RESPONSES_DIR}"'"
-		printf "1" | handle_launch
+		printf "2" | handle_launch
 	'
 	[[ "${status}" -eq 0 ]]
 	assert_docker_called_with "sandbox run existing-sb"

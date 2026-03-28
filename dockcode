@@ -55,7 +55,8 @@ error() { echo "ERROR: $*" >&2; }
 
 prompt_choice() {
 	local prompt="$1"
-	shift
+	local default="$2"
+	shift 2
 	local choice
 	while true; do
 		echo "" >&2
@@ -65,11 +66,14 @@ prompt_choice() {
 			echo "  ${i}) ${opt}" >&2
 			((i++))
 		done
-		printf "\nChoice [1-%d]: " $# >&2
+		printf "\nChoice [1-%d]${default}: " $# >&2
 		read -r choice
 		if [[ ${choice} =~ ^[0-9]+$ ]] && ((choice >= 1 && choice <= $#)); then
 			echo "${choice}"
 			return
+		fi
+		if [[ -z "${choice}" ]]; then
+		  return
 		fi
 		echo "Invalid choice. Enter 1-$#." >&2
 	done
@@ -106,6 +110,7 @@ resolve_config() {
 	while true; do
 		choice=$(prompt_choice \
 			"No ${label} found at ${target}. Which would you like to use?" \
+			"" \
 			"Copy project default (${filename})" \
 			"Use host config (${host_path})" \
 			"Copy host config to $(dirname "${target}") (${host_path})" \
@@ -236,7 +241,7 @@ resolve_sandbox_name() {
 		done
 
 		local choice
-		choice=$(prompt_choice "Which sandbox?" "${menu_options[@]}")
+		choice=$(prompt_choice "Which sandbox?" "" "${menu_options[@]}")
 		name="${sandbox_names[$((choice - 1))]}"
 	fi
 
@@ -293,6 +298,7 @@ handle_settings_update() {
 	local choice
 	choice=$(prompt_choice \
 		"How would you like to update the config?" \
+		"" \
 		"Manually edit (host editor)" \
 		"Re-import default config from host")
 
@@ -462,7 +468,7 @@ handle_destroy() {
 		done
 
 		local choice
-		choice=$(prompt_choice "Which sandbox would you like to destroy?" "${menu_options[@]}")
+		choice=$(prompt_choice "Which sandbox would you like to destroy?" "" "${menu_options[@]}")
 		name="${sandbox_names[$((choice - 1))]}"
 	fi
 
@@ -486,16 +492,23 @@ interactive_launch() {
 	done < <(get_sandbox_names)
 
 	local menu_options=()
+	menu_options+=("Create a new sandbox")
 	for sname in "${sandbox_names[@]}"; do
 		menu_options+=("Launch existing sandbox: ${sname}")
 	done
-	menu_options+=("Create a new sandbox")
 
 	local choice
-	choice=$(prompt_choice "What would you like to do?" "${menu_options[@]}")
+	while true; do
+		choice=$(prompt_choice "What would you like to do?" " (default: 1)" "${menu_options[@]}")
+		choice="${choice:-1}"
+		if ((choice >= 1 && choice <= ${#menu_options[@]})); then
+			break
+		fi
+		error "Invalid option '${choice}'"
+	done
 
-	if ((choice <= ${#sandbox_names[@]})); then
-		local selected="${sandbox_names[$((choice - 1))]}"
+	if ((choice > 1)); then
+		local selected="${sandbox_names[$((choice - 2))]}"
 		info "Launching existing sandbox '${selected}'..."
 		docker sandbox run "${selected}"
 		return
