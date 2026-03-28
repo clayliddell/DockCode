@@ -73,7 +73,7 @@ prompt_choice() {
 			return
 		fi
 		if [[ -z "${choice}" ]]; then
-		  return
+			return
 		fi
 		echo "Invalid choice. Enter 1-$#." >&2
 	done
